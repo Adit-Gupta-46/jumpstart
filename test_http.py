@@ -26,14 +26,33 @@ request_data = {
     "requesting_user_email": "test@example.com",
     "request_time": "2023-08-23T12:00:00",
     "request_location": "Some location",
-    "request_status": "unfulfilled",
     "vehicle_make": "Toyota",
     "vehicle_model": "Camry",
     "vehicle_color": "Blue",
     "vehicle_license_plate": "ABC123"
 }
-response = requests.post(f"{BASE_URL}/request", json=request_data)
+response = requests.post(f"{BASE_URL}/requests", json=request_data)
 print("Create Request:", response.status_code, response.text)
+
+# Assign request test
+assigning_data = {
+    "requesting_user_email": "test@example.com",
+    "request_time": "2023-08-23T12:00:00",
+    "fulfilling_user_email": "fulfill@example.com",
+    "fulfilling_location": "Updated location",
+    "fulfill_start_time": "2023-08-23T12:30:00"
+}
+response = requests.post(f"{BASE_URL}/requests/assign", json=assigning_data)
+print("Assign Request:", response.status_code, response.text)
+
+# Complete request test
+complete_data = {
+    "requesting_user_email": "test@example.com",
+    "request_time": "2023-08-23T12:00:00",
+    "fulfill_end_time": "2023-08-23T13:00:00"
+}
+response = requests.post(f"{BASE_URL}/requests/complete", json=complete_data)
+print("Complete Request:", response.status_code, response.text)
 
 # User deletion test
 delete_data = {
