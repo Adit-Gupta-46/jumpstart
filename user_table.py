@@ -1,5 +1,16 @@
 import bcrypt
 
+'''
+SCHEMA:
+Users:{
+    first_name,
+    last_name,
+    email,
+    password,
+    helper_status
+}
+'''
+
 def create_table(dynamodb):
     try:
         # Define table schemas
