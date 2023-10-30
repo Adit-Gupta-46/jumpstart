@@ -1,8 +1,8 @@
 import socketio
 
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:8088"
 
-# Create a SocketIO client
+# Initialize the Socket.IO client
 sio = socketio.Client()
 
 @sio.on('connect')
@@ -13,14 +13,22 @@ def on_connect():
 def on_disconnect():
     print('Disconnected from WebSocket server')
 
+# Event handler for the "new_request_notification" event
 @sio.on('new_request_notification')
-def on_new_request_notification(data):
-    print('New request received:', data)
-    # Add your WebSocket testing logic here
+def new_request_notification(data):
+    print(f"Received a new request notification: {data}")
 
 if __name__ == '__main__':
-    sio.connect(BASE_URL)
+    # Connect to the Flask-SocketIO server
+    sio.connect('http://localhost:8088')
 
-    # Add your WebSocket testing logic here
-    
-    sio.wait()  # Wait for events
+    # You can send test data to the server if needed
+    # For example, sending a request for a new notification
+    # sio.emit('request_new_notification', {'some_key': 'some_value'}, namespace='/notifications')
+
+    # Keep the client running to receive WebSocket notifications
+    try:
+        sio.wait()
+    except KeyboardInterrupt:
+        # Disconnect on Ctrl+C
+        sio.disconnect()

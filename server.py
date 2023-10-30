@@ -1,7 +1,7 @@
 from gevent import monkey
 monkey.patch_all()
-
-from flask import Flask, request, jsonify
+import threading
+from flask import Flask, request
 from flask_socketio import SocketIO, emit
 import user_table
 import request_table
@@ -15,7 +15,7 @@ import time
 
 
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode='gevent', websocket_path='/socket.io')  # Use gevent and specify the websocket_path
+socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*")
 
 # Create a DynamoDB resource
 dynamodb = boto3.resource('dynamodb', aws_access_key_id=config.aws_access_key_id, aws_secret_access_key=config.aws_secret_access_key, region_name='us-east-1')
@@ -26,9 +26,9 @@ request_table.create_table(dynamodb)
 
 new_request_queue = Queue()
 
-"""
-HTTP USER TABLE API ENDPOINTS
-"""
+# """
+# HTTP USER TABLE API ENDPOINTS
+# """
 @app.route('/users', methods=['POST'])
 def create_user():
     try:
@@ -96,12 +96,9 @@ def create_request():
                                                 request_location, vehicle_make, 
                                                 vehicle_model, vehicle_color,
                                                 vehicle_license_plate):
-            # Emit a WebSocket event to notify clients about the new request
+            # Add event to queue
             request_data = requesting_user_email, request_time, request_location
-            # socketio.emit('new_request_notification', json.dumps(request_data), namespace='/notifications')
             new_request_queue.put(request_data)
-            print("12345678")
-            # socketio.emit('new_request_notification', json.dumps(request_data))
 
             return "Request created successfully", HTTPStatus.CREATED
         else:
@@ -147,30 +144,34 @@ def complete_request():
     except Exception as e:
         return str(e), HTTPStatus.INTERNAL_SERVER_ERROR
 
-def handle_client_connect():
+def emit_from_queue():
     while True:
-        print("WebSocket notification handler started..................................................................")
-
-        # Get a new request notification from the queue
-        if not new_request_queue.empty:
+        if not new_request_queue.empty():
             request_data = new_request_queue.get()
             if request_data:
-                # Emit the notification via WebSocket
-                print("jhfgjhgjhg", request_data)
                 socketio.emit('new_request_notification', json.dumps(request_data))
-        socketio.sleep(1)  # Sleep for 1 second before checking the queue again
+        time.sleep(1)  # Adjust the sleep interval as needed
 
-# Create a thread to handle WebSocket notifications
-notification_thread = threading.Thread(target=handle_client_connect)
-notification_thread.start()
+def repopulate_queue():
+    while True:
+        missed_requests = request_table.get_unassigned_requests(dynamodb)
+        try:
+            for request in missed_requests:
+                new_request_queue.put(request["requesting_user_email"], request["request_time"], request["request_location"])
+        except Exception as e:
+            print(f"Error querying the database: {str(e)}")
+        
+        # Sleep for a specific interval (e.g., 5 minutes) before querying the database again
+        time.sleep(20)  # Adjust the sleep interval as needed
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
-    # The main program can continue running here
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        # If you want to stop the thread gracefully when you press Ctrl+C
-        notification_thread.join()
 
+    emit_thread = threading.Thread(target=emit_from_queue)
+    emit_thread.daemon = True  # This allows the thread to exit when the main program exits
+    emit_thread.start()
+
+    repopulate_thread = threading.Thread(target=repopulate_queue)
+    repopulate_thread.daemon = True
+    repopulate_thread.start()
+
+    socketio.run(app, host='0.0.0.0', port=8088)

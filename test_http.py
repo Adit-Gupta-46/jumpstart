@@ -1,6 +1,6 @@
 import requests
 
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:8088"
 
 # User creation test
 user_data = {

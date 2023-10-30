@@ -1,3 +1,5 @@
+from boto3.dynamodb.conditions import Attr
+
 '''
 Schema:
 
@@ -168,3 +170,12 @@ def complete_request(dynamodb, requesting_user_email, request_time, fulfill_end_
         return True
     # else:
     return False
+
+def get_unassigned_requests(dynamodb):
+    # Access the Users table
+    requests_table = dynamodb.Table('Requests')
+    filter_expression = Attr('request_status').eq('unfulfilled')
+
+    # Perform the scan operation with the filter expression
+    response = requests_table.scan(FilterExpression=filter_expression)
+    return response["Items"]
